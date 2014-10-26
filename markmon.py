@@ -63,13 +63,17 @@ class MarkmonSettings:
         self.server_command = []
         self.client_url = ""
 
+    def updatePath(self):
+        self.settings["projectdir"] = os.path.dirname(sublime.active_window().active_view().file_name())
+        self.build_strings()
+
     def update(self, settings):
         self.settings = {
             "executable": settings.get("executable", 'markmon'),
             "port": settings.get("port", 3000),
             "command": settings.get("command", "pandoc -t HTML5"),
             "stylesheet": settings.get("stylesheet", None),
-            "projectdir": settings.get("projectdir", None)
+            "projectdir": os.path.dirname(sublime.active_window().active_view().file_name())
         }
         self.build_strings()
 
@@ -77,14 +81,11 @@ class MarkmonSettings:
         self.client_url = "localhost:{:d}".format(self.settings['port'])
         self.server_command = [self.settings["executable"],
                                     "--port", str(self.settings['port']),
-                                    "--command", self.settings['command']]
+                                    "--command", self.settings['command'],
+                                    "--projectdir", os.path.dirname(sublime.active_window().active_view().file_name())]
         if self.settings['stylesheet']:
             self.server_command.append("--stylesheet")
             self.server_command.append(self.settings['stylesheet'])
-
-        if self.settings['projectdir']:
-            self.server_command.append("--projectdir")
-            self.server_command.append(self.settings['projectdir'])
 
 class MarkmonClient:
     def __init__(self, settings):
@@ -97,6 +98,7 @@ class MarkmonClient:
     def view_updated(self, view, try_server=True):
          if self.settings.running and MARKDOWN_SYNTAX.match(view.scope_name(0)):
             try:
+                self.settings.updatePath()
                 connection = http.client.HTTPConnection(self.settings.client_url)
                 connection.request('PUT', '/', view.substr(sublime.Region(0, view.size())).encode('utf-8'))
                 connection.getresponse()
